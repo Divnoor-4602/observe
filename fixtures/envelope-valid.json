@@ -1,0 +1,84 @@
+[
+	{
+		"duration_ms": 42,
+		"environment": "production",
+		"event": "chat_turn",
+		"event_id": "evt_0011223344556677",
+		"outcome": "success",
+		"runtime": "web",
+		"schema_version": 1,
+		"span_id": "00f067aa0ba902b7",
+		"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+		"ts": "2026-07-24T00:00:00.000Z"
+	},
+	{
+		"duration_ms": 42,
+		"environment": "production",
+		"event": "model_call",
+		"event_id": "evt_0011223344556677",
+		"outcome": "error",
+		"runtime": "convex",
+		"schema_version": 1,
+		"span_id": "11f067aa0ba902b8",
+		"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+		"ts": "2026-07-24T00:00:00.000Z",
+		"error": {
+			"code": "RATE_LIMITED",
+			"message": "model provider rate limit",
+			"type": "AppError"
+		},
+		"parent_span_id": "00f067aa0ba902b7",
+		"request_id": "req_8899aabbccddeeff",
+		"route": "chat.stream",
+		"sample_rate": 1,
+		"sampled": true
+	},
+	{
+		"duration_ms": 42,
+		"environment": "production",
+		"event": "chat_turn",
+		"event_id": "evt_0011223344556677",
+		"outcome": "success",
+		"runtime": "web",
+		"schema_version": 1,
+		"span_id": "00f067aa0ba902b7",
+		"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+		"ts": "2026-07-24T00:00:00.000Z",
+		"gen_ai": {
+			"provider": {
+				"name": "anthropic"
+			},
+			"request": {
+				"model": "claude-fable-5"
+			},
+			"usage": {
+				"input_tokens": 812,
+				"output_tokens": 213
+			}
+		},
+		"sample_rate": 0.2,
+		"sampled": true,
+		"user_tier": "free"
+	},
+	{
+		"duration_ms": 42,
+		"environment": "production",
+		"event": "payment_attempt",
+		"event_id": "evt_0011223344556677",
+		"outcome": "success",
+		"runtime": "web",
+		"schema_version": 1,
+		"span_id": "00f067aa0ba902b7",
+		"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+		"ts": "2026-07-24T00:00:00.000Z",
+		"payment": {
+			"amount_minor": 4999,
+			"currency": "USD",
+			"processor": "stripe",
+			"status": "success"
+		},
+		"sample_rate": 1,
+		"sampled": true,
+		"user_tier": "premium"
+	}
+]

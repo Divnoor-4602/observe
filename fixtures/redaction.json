@@ -1,0 +1,147 @@
+[
+	{
+		"input": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"access_token": "super-secret-value",
+			"api_key": "sk_live_abcdef123456",
+			"gen_ai": {
+				"usage": {
+					"input_tokens": 100,
+					"output_tokens": 50
+				}
+			},
+			"tokens_in": 100,
+			"tokens_out": 50
+		},
+		"output": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"gen_ai": {
+				"usage": {
+					"input_tokens": 100,
+					"output_tokens": 50
+				}
+			},
+			"tokens_in": 100,
+			"tokens_out": 50
+		}
+	},
+	{
+		"input": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"note": "contact me at jane.doe@example.com or +1 (415) 555-0100",
+			"server": {
+				"ip": "client was 203.0.113.42 today"
+			}
+		},
+		"output": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"note": "contact me at [REDACTED:email] or +1 (415) 555-0100",
+			"server": {
+				"ip": "client was [REDACTED:ipv4] today"
+			}
+		}
+	},
+	{
+		"input": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"payment": {
+				"card_number": "4111111111111111",
+				"memo": "card 4111 1111 1111 1111 approved, fake 1234567890123 ignored"
+			}
+		},
+		"output": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"payment": {
+				"memo": "card [REDACTED:credit_card] approved, fake 1234567890123 ignored"
+			}
+		}
+	},
+	{
+		"input": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"auth": {
+				"jwt": "bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+			},
+			"keys": "sk_fakekey1234567890abcdef and AKIAIOSFODNN7EXAMPLE"
+		},
+		"output": {
+			"duration_ms": 42,
+			"environment": "production",
+			"event": "chat_turn",
+			"event_id": "evt_0011223344556677",
+			"outcome": "success",
+			"runtime": "web",
+			"schema_version": 1,
+			"span_id": "00f067aa0ba902b7",
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+			"ts": "2026-07-24T00:00:00.000Z",
+			"auth": {
+				"jwt": "bearer [REDACTED:jwt]"
+			},
+			"keys": "[REDACTED:api_key] and [REDACTED:api_key]"
+		}
+	}
+]

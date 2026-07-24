@@ -1,0 +1,29 @@
+{
+	"name": "@ecogpt/observe",
+	"version": "0.1.0",
+	"private": true,
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./catalog": "./src/catalog/index.ts",
+		"./client": "./src/client.ts",
+		"./dev": "./src/sinks/dev.ts",
+		"./schema": "./src/core/schema.ts",
+		"./sentry": "./src/sinks/sentry.ts",
+		"./types": "./src/types.ts"
+	},
+	"scripts": {
+		"generate": "bun run scripts/generate-artifacts.ts",
+		"test": "vitest run",
+		"typecheck": "tsc -p tsconfig.json --noEmit"
+	},
+	"devDependencies": {
+		"typescript": "^6.0.0",
+		"vitest": "^4.1.5",
+		"zod": "^4.4.3"
+	},
+	"peerDependencies": {
+		"zod": "^4.4.3"
+	}
+}

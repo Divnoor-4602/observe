@@ -1,0 +1,108 @@
+{
+	"$id": "https://ecogpt.dev/schemas/catalog.schema.json",
+	"description": "Field-set schemas for known events, keyed by event name. Events absent from this map are still valid — the catalog is open; validate only when a schema exists.",
+	"events": {
+		"chat_turn": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"conversation_id": {
+					"type": "string"
+				},
+				"event": {
+					"type": "string",
+					"const": "chat_turn"
+				},
+				"gen_ai": {
+					"type": "object",
+					"properties": {
+						"provider": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"name"
+							]
+						},
+						"request": {
+							"type": "object",
+							"properties": {
+								"model": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"model"
+							]
+						},
+						"usage": {
+							"type": "object",
+							"properties": {
+								"input_tokens": {
+									"type": "number"
+								},
+								"output_tokens": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"input_tokens",
+								"output_tokens"
+							]
+						}
+					},
+					"required": [
+						"provider",
+						"request"
+					]
+				}
+			},
+			"required": [
+				"event",
+				"gen_ai"
+			],
+			"title": "chat_turn"
+		},
+		"payment_attempt": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"event": {
+					"type": "string",
+					"const": "payment_attempt"
+				},
+				"payment": {
+					"type": "object",
+					"properties": {
+						"amount_minor": {
+							"type": "number"
+						},
+						"currency": {
+							"type": "string"
+						},
+						"processor": {
+							"type": "string"
+						},
+						"status": {
+							"type": "string"
+						}
+					},
+					"required": [
+						"amount_minor",
+						"currency",
+						"processor",
+						"status"
+					]
+				}
+			},
+			"required": [
+				"event",
+				"payment"
+			],
+			"title": "payment_attempt"
+		}
+	}
+}

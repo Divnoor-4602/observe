@@ -1,0 +1,205 @@
+{
+	"algorithm": "bucket = int(trace_id[0:8], 16); keep when bucket < rate * 16**8. Errors and exempt tiers bypass with sample_rate 1.",
+	"cases": [
+		{
+			"rate": 0.01,
+			"should_keep": true,
+			"trace_id": "00000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": true,
+			"trace_id": "00000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": true,
+			"trace_id": "00000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": true,
+			"trace_id": "00000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "0ccccccca3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": true,
+			"trace_id": "0ccccccca3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": true,
+			"trace_id": "0ccccccca3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": true,
+			"trace_id": "0ccccccca3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "19999999a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": true,
+			"trace_id": "19999999a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": true,
+			"trace_id": "19999999a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": true,
+			"trace_id": "19999999a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "33333332a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "33333332a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": true,
+			"trace_id": "33333332a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": true,
+			"trace_id": "33333332a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": false,
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": true,
+			"trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "7fffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "7fffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": false,
+			"trace_id": "7fffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": true,
+			"trace_id": "7fffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "80000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "80000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": false,
+			"trace_id": "80000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": false,
+			"trace_id": "80000000a3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "cafebabea3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "cafebabea3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": false,
+			"trace_id": "cafebabea3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": false,
+			"trace_id": "cafebabea3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "deadbeefa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "deadbeefa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": false,
+			"trace_id": "deadbeefa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": false,
+			"trace_id": "deadbeefa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.01,
+			"should_keep": false,
+			"trace_id": "ffffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.1,
+			"should_keep": false,
+			"trace_id": "ffffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.2,
+			"should_keep": false,
+			"trace_id": "ffffffffa3ce929d0e0e4736aabbccdd"
+		},
+		{
+			"rate": 0.5,
+			"should_keep": false,
+			"trace_id": "ffffffffa3ce929d0e0e4736aabbccdd"
+		}
+	]
+}
