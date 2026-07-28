@@ -1,0 +1,45 @@
+[project]
+name = "observe-py"
+version = "0.1.0"
+description = "Wide-event observability SDK — Python twin of the TypeScript reference implementation in ../src"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.7"]
+
+[project.optional-dependencies]
+httpx = ["httpx>=0.27"]
+sentry = ["sentry-sdk>=2.0"]
+
+[dependency-groups]
+dev = [
+	"datamodel-code-generator>=0.26",
+	"fastapi>=0.115",
+	"httpx>=0.27",
+	"jsonschema>=4.22",
+	"pytest>=8.2",
+	"pytest-asyncio>=0.24",
+	"ruff>=0.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["observe_py"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["observe_py/envelope.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ANN"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]

@@ -7,8 +7,9 @@ This repo is the standalone home of the SDK plus everything the backend team nee
 | Where | What |
 | ----- | ---- |
 | `src/` | The TypeScript SDK (browser / React Native) — the reference implementation |
+| [`python/`](python/) | The Python/FastAPI SDK (`observe_py`) — the port specced by `docs/python-port.md`, gated by the shared fixtures |
 | `schemas/` | The envelope + event catalog as JSON Schema, generated from the zod source (`bun run generate`) — the cross-language contract |
-| `fixtures/` | Golden test data produced by the real TS pipeline (sampling decisions, redaction pairs, normalize pairs, valid/invalid envelopes) — port these into pytest |
+| `fixtures/` | Golden test data produced by the real TS pipeline (sampling decisions, redaction pairs, normalize pairs, valid/invalid envelopes) — ported into pytest (`python/tests`) |
 | [`docs/python-port.md`](docs/python-port.md) | Full spec for the Python/FastAPI port: engine, ASGI middleware, contextvars ambient API, propagation, GCP delivery |
 | [`docs/sentry-python.md`](docs/sentry-python.md) | How the Sentry sink changes on FastAPI (per-request isolation scopes, direct `trace_id` tagging, middleware ordering) |
 | [`docs/tinybird.md`](docs/tinybird.md) | Delivery: Cloud Logging → Pub/Sub → drain → Tinybird, durable Cloud Tasks path, table schema, reweighting queries |
