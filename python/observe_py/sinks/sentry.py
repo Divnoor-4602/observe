@@ -37,11 +37,10 @@ class SentrySink:
 
     def flush(self) -> Any:
         if self._flush is None:
-            return
-        try:
-            return self._flush()
-        except Exception:
-            return None  # a broken synchronous integration must never affect emit
+            return None
+        # Return the guarded result: an async flush hands its awaitable to the
+        # client, which awaits it during ObservabilityClient.flush().
+        return self._guard(self._flush)
 
     def send(self, event: dict[str, Any]) -> None:
         self._guard(
@@ -81,8 +80,8 @@ class SentrySink:
         )
 
     @staticmethod
-    def _guard(fn: Callable[[], Any]) -> None:
+    def _guard(fn: Callable[[], Any]) -> Any:
         try:
-            fn()
+            return fn()
         except Exception:
-            pass  # a broken Sentry integration must never affect emit
+            return None  # a broken Sentry integration must never affect emit
