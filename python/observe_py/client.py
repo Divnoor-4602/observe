@@ -158,6 +158,19 @@ class ObservabilityClient:
         self._pending.add(task)
         task.add_done_callback(self._pending.discard)
 
+    def forward(self, event: dict[str, Any]) -> None:
+        """Relay-ingest delivery: redact and fan out an already-stamped event.
+
+        No re-sampling and no new span — the browser made the keep decision and
+        stamped ``sampled``/``sample_rate`` (see ``docs/python-port.md``, client
+        relay ingest). Re-redaction is deliberate defense in depth: the client
+        scrubbed before sending, but it costs nothing and protects any sink
+        attached to the relay path.
+        """
+        scrubbed = redact_event(event)
+        for sink in self._config.sinks:
+            self._deliver(sink, scrubbed)
+
     def _emit(self, event: dict[str, Any]) -> None:
         decision = get_sample_decision(event, self._sample_rate, self._config.sample_exempt_tiers)
         if not decision.should_keep:

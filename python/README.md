@@ -74,6 +74,21 @@ ed_client = httpx.AsyncClient(base_url=ED_URL, event_hooks={"request": [inject_t
 Background consumers (Pub/Sub, Cloud Tasks): read `traceparent` from message
 attributes, `parse_traceparent(...)`, and pass the ids to `client.begin(...)`.
 
+Browser relay ingest (the client-relay trust boundary from the spec) — mount it
+on whichever service fronts the web app; the TS client's `event` sink POSTs
+each kept event here:
+
+```python
+from observe_py.relay import create_ingest_router
+
+app.include_router(create_ingest_router(client))  # POST /observe/ingest → 202
+```
+
+It validates against the generated envelope (strict; unknown event names pass —
+open catalog), never re-samples or re-spans (browser stamps survive), and
+re-redacts before fanning out to the client's sinks. Rate-limiting and
+request-size caps are yours to add at the service: the endpoint is public.
+
 ## Parity notes
 
 - Explicit empty-string trace and parent-span IDs win over an ambient parent, matching
