@@ -29,6 +29,28 @@ def test_unknown_event_names_are_valid():
     validate_wide_event(envelope)
 
 
+def test_duration_rejects_string_coercion():
+    envelope = dict(load_fixture("envelope-valid.json")[0])
+    envelope["duration_ms"] = "42"
+    with pytest.raises(ValidationError):
+        validate_wide_event(envelope)
+
+
+def test_error_extras_are_stripped():
+    envelope = dict(load_fixture("envelope-valid.json")[0])
+    envelope["error"] = {"stack": "secret", "type": "X"}
+    validated = validate_wide_event(envelope)
+    assert validated.error is not None
+    assert validated.error.model_dump() == {"code": None, "message": None, "type": "X"}
+
+
+def test_root_extras_are_kept():
+    envelope = dict(load_fixture("envelope-valid.json")[0])
+    envelope["custom_field"] = "kept"
+    validated = validate_wide_event(envelope)
+    assert validated.model_dump()["custom_field"] == "kept"
+
+
 def test_chat_turn_validates_against_catalog_schema():
     catalog = load_schema("catalog.schema.json")
     chat_turn = next(

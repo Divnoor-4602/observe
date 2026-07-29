@@ -6,6 +6,7 @@ Python service agree without coordination.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 DEFAULT_SAMPLE_RATE = 0.2
 SAMPLE_HEX_CHARS = 8
 SAMPLE_BUCKETS = 16**SAMPLE_HEX_CHARS
+HEX_PREFIX = re.compile(r"^[0-9a-fA-F]+")
 
 
 class SampleDecision(BaseModel):
@@ -47,10 +49,10 @@ def is_sampled(trace_id: str, rate: float) -> bool:
     if rate <= 0:
         return False
 
-    try:
-        bucket = int(trace_id[:SAMPLE_HEX_CHARS], 16)
-    except ValueError:
+    prefix = HEX_PREFIX.match(trace_id[:SAMPLE_HEX_CHARS])
+    if prefix is None:
         return True  # malformed id → keep, mirroring the TS NaN branch
+    bucket = int(prefix.group(), 16)
 
     return bucket < rate * SAMPLE_BUCKETS
 

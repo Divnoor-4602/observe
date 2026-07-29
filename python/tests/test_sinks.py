@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 
+import pytest
+
+from observe_py.client import ObservabilityClient
 from observe_py.sinks import ConsolePrettySink, MemorySink, SentrySink, StdoutJsonSink
+from observe_py.types import ClientConfig
 
 
 def make_event(**overrides) -> dict:
@@ -128,6 +133,26 @@ def test_flush_passthrough_and_guard():
     broken.flush()  # must not raise
 
 
+async def test_async_sentry_flush_is_awaited_by_client():
+    flushed = False
+
+    async def async_flush() -> None:
+        nonlocal flushed
+        await asyncio.sleep(0)
+        flushed = True
+
+    calls = SentryCalls()
+    sink = SentrySink(
+        add_breadcrumb=calls.add_breadcrumb,
+        set_tag=calls.set_tag,
+        set_context=calls.set_context,
+        flush=async_flush,
+    )
+    client = ObservabilityClient(ClientConfig(sinks=(sink,)))
+    await client.flush()
+    assert flushed is True
+
+
 def test_stdout_sink_emits_one_marked_json_line(capsys):
     StdoutJsonSink().send(make_event())
     lines = capsys.readouterr().out.strip().splitlines()
@@ -135,6 +160,11 @@ def test_stdout_sink_emits_one_marked_json_line(capsys):
     parsed = json.loads(lines[0])
     assert parsed["type"] == "observability_event"
     assert parsed["event"]["event"] == "chat_turn"
+
+
+def test_stdout_sink_surfaces_non_json_values():
+    with pytest.raises(TypeError):
+        StdoutJsonSink().send(make_event(bad=object()))
 
 
 def test_memory_sink_records_and_clears():

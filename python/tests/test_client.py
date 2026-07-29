@@ -168,6 +168,26 @@ def test_explicit_trace_adoption(memory_sink):
     assert event["parent_span_id"] == "00f067aa0ba902b7"
 
 
+def test_explicit_empty_trace_ids_win_over_ambient_parent(memory_sink):
+    client = make_client(memory_sink)
+    with client.span("parent"):
+        client.begin("child", trace_id="", parent_span_id="").end()
+
+    child_event, _ = memory_sink.events
+    assert child_event["trace_id"] == ""
+    assert child_event["parent_span_id"] == ""
+
+
+def test_merge_drops_prototype_pollution_keys(memory_sink):
+    client = make_client(memory_sink)
+    span = client.begin("chat_turn")
+    span.add({"__proto__": "x", "constructor": "y"})
+    span.end()
+
+    assert "__proto__" not in memory_sink.events[0]
+    assert "constructor" not in memory_sink.events[0]
+
+
 async def test_child_spans_share_trace_and_link_parent(memory_sink):
     client = make_client(memory_sink)
     with client.span("api_ingress") as parent:
@@ -201,6 +221,24 @@ async def test_span_records_error_and_reraises(memory_sink):
     assert event["outcome"] == "error"
     assert event["error"]["type"] == "ValueError"
     assert current_span.get() is None
+
+
+async def test_cancelled_span_emits_cancelled_without_error(memory_sink):
+    client = make_client(memory_sink)
+
+    async def cancelled_work() -> None:
+        with client.span("cancelled_work"):
+            await asyncio.Event().wait()
+
+    task = asyncio.create_task(cancelled_work())
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert len(memory_sink.events) == 1
+    assert memory_sink.events[0]["outcome"] == "cancelled"
+    assert "error" not in memory_sink.events[0]
 
 
 async def test_concurrent_spans_do_not_cross_contaminate(memory_sink):
@@ -258,3 +296,34 @@ async def test_flush_calls_sink_flush(memory_sink):
     client._config = client._config.model_copy(update={"sinks": (FlushableSink(),)})
     await client.flush()
     assert flushed == [True]
+
+
+async def test_flush_settles_all_sinks_when_one_raises(memory_sink):
+    flushed = asyncio.Event()
+
+    class BrokenFlushSink:
+        name = "broken"
+
+        def send(self, event) -> None:
+            return None
+
+        async def flush(self) -> None:
+            await asyncio.sleep(0)
+            raise RuntimeError("flush down")
+
+    class WorkingFlushSink:
+        name = "working"
+
+        def send(self, event) -> None:
+            return None
+
+        async def flush(self) -> None:
+            await asyncio.sleep(0)
+            flushed.set()
+
+    client = make_client(memory_sink)
+    client._config = client._config.model_copy(
+        update={"sinks": (BrokenFlushSink(), WorkingFlushSink())}
+    )
+    await client.flush()
+    assert flushed.is_set()

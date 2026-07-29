@@ -35,13 +35,13 @@ class SentrySink:
         self._set_context = set_context
         self._flush = flush
 
-    def flush(self) -> None:
+    def flush(self) -> Any:
         if self._flush is None:
             return
         try:
-            self._flush()
+            return self._flush()
         except Exception:
-            pass  # a broken Sentry integration must never affect emit
+            return None  # a broken synchronous integration must never affect emit
 
     def send(self, event: dict[str, Any]) -> None:
         self._guard(

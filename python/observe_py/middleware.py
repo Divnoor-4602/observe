@@ -7,6 +7,7 @@ to ``sentry_sdk.set_tag`` so mid-request captures already carry ``trace_id``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import TYPE_CHECKING, Any
@@ -69,8 +70,11 @@ class ObserveMiddleware:
         token = current_span.set(span)
         try:
             await self.app(scope, receive, send_wrapper)
-        except Exception as err:
-            span.error(err)
+        except BaseException as err:
+            if isinstance(err, asyncio.CancelledError):
+                span.add({"outcome": "cancelled"})
+            else:
+                span.error(err)
             raise  # capture belongs to Sentry's own integration, wrapped outside us
         finally:
             if status["code"] is not None:

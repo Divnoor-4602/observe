@@ -17,7 +17,6 @@ class StdoutJsonSink:
     def send(self, event: dict[str, Any]) -> None:
         line = json.dumps(
             {"event": event, "type": "observability_event"},
-            default=str,
             separators=(",", ":"),
         )
         print(line, flush=True)

@@ -21,9 +21,6 @@ class Environment(StrEnum):
 
 
 class Error(BaseModel):
-    model_config = ConfigDict(
-        extra='allow',
-    )
     code: str | None = None
     message: str | None = None
     type: str

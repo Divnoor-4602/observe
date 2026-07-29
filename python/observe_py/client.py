@@ -54,14 +54,17 @@ class ObservabilityClient:
                     _logger.warning("[observe] context provider failed", exc_info=True)
 
         parent = current_span.get()
-        trace_id = (
-            read_string(meta.get("trace_id"))
-            or (parent.trace_id if parent is not None else None)
-            or new_trace_id(self._random_bytes)
-        )
-        parent_span_id = read_string(meta.get("parent_span_id")) or (
-            parent.span_id if parent is not None else None
-        )
+        explicit_trace_id = read_string(meta.get("trace_id"))
+        trace_id = explicit_trace_id if explicit_trace_id is not None else None
+        if trace_id is None and parent is not None:
+            trace_id = parent.trace_id
+        if trace_id is None:
+            trace_id = new_trace_id(self._random_bytes)
+
+        explicit_parent_span_id = read_string(meta.get("parent_span_id"))
+        parent_span_id = explicit_parent_span_id if explicit_parent_span_id is not None else None
+        if parent_span_id is None and parent is not None:
+            parent_span_id = parent.span_id
 
         data: dict[str, Any] = {**context, **meta}
         data.update(
@@ -99,10 +102,10 @@ class ObservabilityClient:
         while self._pending:
             await asyncio.gather(*tuple(self._pending), return_exceptions=True)
 
-        for sink in self._config.sinks:
+        async def flush_sink(sink: Sink) -> None:
             sink_flush = getattr(sink, "flush", None)
             if sink_flush is None:
-                continue
+                return
             try:
                 result = sink_flush()
                 if inspect.isawaitable(result):
@@ -110,6 +113,8 @@ class ObservabilityClient:
             except Exception:
                 if self._dev:
                     _logger.warning("[observe] sink %r flush failed", sink.name, exc_info=True)
+
+        await asyncio.gather(*(flush_sink(sink) for sink in self._config.sinks))
 
     def interaction(self, name: str) -> AbstractContextManager[Span]:
         return self.span(name)
@@ -121,7 +126,10 @@ class ObservabilityClient:
         try:
             yield span
         except BaseException as err:
-            span.error(err)
+            if isinstance(err, asyncio.CancelledError):
+                span.add({"outcome": "cancelled"})
+            else:
+                span.error(err)
             raise
         finally:
             span.end()

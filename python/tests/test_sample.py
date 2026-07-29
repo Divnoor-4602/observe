@@ -30,6 +30,14 @@ def test_malformed_trace_id_keeps():
     assert is_sampled("", 0.01) is True
 
 
+def test_partial_hex_prefix_matches_javascript_parse_int():
+    assert is_sampled("fffffffg" + "0" * 24, 0.001) is False
+
+
+def test_no_hex_prefix_keeps_as_nan_branch():
+    assert is_sampled("gfffffff" + "0" * 24, 0.001) is True
+
+
 def test_errors_always_kept():
     event = {"outcome": "error", "trace_id": "ffffffff" + "0" * 24}
     decision = get_sample_decision(event, 0.0, ())

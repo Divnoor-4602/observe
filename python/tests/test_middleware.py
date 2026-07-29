@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
 
@@ -84,6 +86,29 @@ async def test_exception_records_error_and_reraises():
     assert event["outcome"] == "error"
     assert event["error"]["type"] == "RuntimeError"
     assert "status_code" not in event
+
+
+async def test_cancelled_request_emits_one_cancelled_event():
+    started = asyncio.Event()
+
+    async def waiting_app(scope, receive, send) -> None:
+        started.set()
+        await asyncio.Event().wait()
+
+    sink = MemorySink()
+    client = ObservabilityClient(
+        ClientConfig(environment="production", sample_rate=1, sinks=(sink,))
+    )
+    app = ObserveMiddleware(waiting_app, client=client)
+    task = asyncio.create_task(request(app))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert len(sink.events) == 1
+    assert sink.events[0]["outcome"] == "cancelled"
+    assert "error" not in sink.events[0]
 
 
 async def test_on_begin_hook_receives_span_and_failures_are_contained():
