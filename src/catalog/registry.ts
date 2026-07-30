@@ -7,5 +7,5 @@ export type InferEvents<T extends Catalog> = {
 };
 
 export function catalogSchema(catalog: Catalog, event: string): undefined | ZodType {
-	return catalog[event];
+	return Object.hasOwn(catalog, event) ? catalog[event] : undefined;
 }

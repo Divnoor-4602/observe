@@ -32,7 +32,7 @@ function normalizeLeaf(value: unknown): unknown {
 	}
 
 	if (value instanceof Date) {
-		return value.toISOString();
+		return Number.isNaN(value.getTime()) ? null : value.toISOString();
 	}
 
 	return undefined;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createMemorySink } from '../../sinks/dev.ts';
 import { createObservabilityClient } from '../client.ts';
+import { parseTraceArg, toTraceArg } from '../propagation.ts';
 import { wideEventSchema } from '../schema.ts';
 
 function makeClient() {
@@ -112,6 +113,26 @@ describe('deep-merge accumulation', () => {
 			status: 'succeeded',
 		});
 	});
+
+	it('deep-merges request context and begin metadata', () => {
+		const memory = createMemorySink();
+		const client = createObservabilityClient({
+			environment: 'development',
+			getContext: () => ({
+				gen_ai: { provider: { name: 'openai' }, request: { temperature: 0.2 } },
+			}),
+			runtime: 'web',
+			sampleRate: 1,
+			sinks: [memory],
+		});
+
+		client.begin({ event: 'model_call', gen_ai: { request: { model: 'gpt-5.5' } } }).end();
+
+		expect(memory.events[0].gen_ai).toEqual({
+			provider: { name: 'openai' },
+			request: { model: 'gpt-5.5', temperature: 0.2 },
+		});
+	});
 });
 
 describe('child sub-spans', () => {
@@ -143,6 +164,19 @@ describe('error completions', () => {
 		).rejects.toThrow('declined');
 
 		expect(memory.events[0].error?.code).toBe('card_declined');
+	});
+
+	it('captures error.code from a structured data payload', async () => {
+		const { client, memory } = makeClient();
+		const err = Object.assign(new Error('forbidden'), { data: { code: 'FORBIDDEN' } });
+
+		await expect(
+			client.withSpan({ event: 'guarded' }, () => {
+				throw err;
+			}),
+		).rejects.toThrow('forbidden');
+
+		expect(memory.events[0].error?.code).toBe('FORBIDDEN');
 	});
 
 	it('merges extra fields passed to error()', () => {
@@ -223,6 +257,58 @@ describe('flush drains late deliveries', () => {
 
 		expect(delivered).toContain('first');
 		expect(delivered).toContain('second');
+	});
+
+	it('settles every sink when a flush callback throws synchronously', async () => {
+		let workingSinkFlushed = false;
+		const client = createObservabilityClient({
+			environment: 'development',
+			runtime: 'web',
+			sinks: [
+				{
+					flush: () => {
+						throw new Error('flush down');
+					},
+					name: 'broken',
+					send: () => undefined,
+				},
+				{
+					flush: () => {
+						workingSinkFlushed = true;
+					},
+					name: 'working',
+					send: () => undefined,
+				},
+			],
+		});
+
+		await expect(client.flush()).resolves.toBeUndefined();
+		expect(workingSinkFlushed).toBe(true);
+	});
+});
+
+describe('sink isolation', () => {
+	it('gives every sink its own redacted event clone', async () => {
+		const memory = createMemorySink();
+		const client = createObservabilityClient({
+			environment: 'development',
+			runtime: 'web',
+			sampleRate: 1,
+			sinks: [
+				{
+					name: 'mutating',
+					send: (event) => {
+						event.note = 'changed by first sink';
+					},
+				},
+				memory,
+			],
+		});
+
+		client.begin({ event: 'fan_out', note: 'original' }).end();
+		await client.flush();
+
+		expect(memory.events[0].note).toBe('original');
 	});
 });
 
@@ -316,6 +402,129 @@ describe('sampling at emit', () => {
 		expect(memory.events).toHaveLength(1);
 		expect(memory.events[0].event).toBe('paid');
 		expect(memory.events[0].sample_rate).toBe(1);
+	});
+});
+
+function makeDetachedClient() {
+	const memory = createMemorySink();
+	const client = createObservabilityClient({
+		ambient: false,
+		environment: 'development',
+		runtime: 'convex',
+		sampleRate: 1,
+		sinks: [memory],
+	});
+	return { client, memory };
+}
+
+describe('ambient: false clients', () => {
+	it('runs the span lifecycle without joining the ambient stack', async () => {
+		const { client, memory } = makeDetachedClient();
+
+		await client.withSpan({ event: 'outer' }, () => {
+			client.add({ leaked: true });
+			client.begin({ event: 'inner' }).end();
+		});
+
+		const outer = memory.events.find((event) => event.event === 'outer');
+		const inner = memory.events.find((event) => event.event === 'inner');
+		expect(outer?.leaked).toBeUndefined();
+		expect(inner?.parent_span_id).toBeUndefined();
+		expect(inner?.trace_id).not.toBe(outer?.trace_id);
+	});
+
+	it('still records errors and rethrows', async () => {
+		const { client, memory } = makeDetachedClient();
+
+		await expect(
+			client.withSpan({ event: 'boom' }, () => {
+				throw new Error('kaboom');
+			}),
+		).rejects.toThrow('kaboom');
+
+		expect(memory.events[0].outcome).toBe('error');
+	});
+});
+
+describe('currentTrace', () => {
+	it('returns undefined outside any span', () => {
+		const { client } = makeClient();
+
+		expect(client.currentTrace()).toBeUndefined();
+	});
+
+	it('returns the active span ids inside an interaction', async () => {
+		const { client, memory } = makeClient();
+
+		await client.withInteraction('chat_send', () => {
+			const trace = client.currentTrace();
+			expect(trace?.traceId).toMatch(/^[0-9a-f]{32}$/);
+			expect(trace?.spanId).toMatch(/^[0-9a-f]{16}$/);
+		});
+
+		const event = memory.events[0];
+		await client.withInteraction('outer', () => {
+			expect(client.currentTrace()?.traceId).not.toBe(event.trace_id);
+		});
+	});
+
+	it('reports the head sampling decision for the configured rate', async () => {
+		const memory = createMemorySink();
+		const client = createObservabilityClient({
+			environment: 'development',
+			randomBytes: (bytes) => bytes.fill(0xff),
+			runtime: 'web',
+			sampleRate: 0.5,
+			sinks: [memory],
+		});
+
+		await client.withInteraction('dropped', () => {
+			expect(client.currentTrace()?.sampled).toBe(false);
+		});
+	});
+
+	it('stitches a second client into the same trace via the args codec', async () => {
+		const { client: appClient, memory: appMemory } = makeClient();
+		const { client: serverClient, memory: serverMemory } = makeClient();
+
+		await appClient.withInteraction('chat_send', () => {
+			const trace = appClient.currentTrace();
+			const arg = trace === undefined ? undefined : toTraceArg(trace);
+			serverClient.begin({ event: 'send_message', ...parseTraceArg(arg) }).end();
+		});
+
+		const clientEvent = appMemory.events.find((event) => event.event === 'chat_send');
+		const serverEvent = serverMemory.events.find((event) => event.event === 'send_message');
+
+		expect(serverEvent?.trace_id).toBe(clientEvent?.trace_id);
+		expect(serverEvent?.parent_span_id).toBe(clientEvent?.span_id);
+		expect(serverEvent?.span_id).not.toBe(clientEvent?.span_id);
+	});
+});
+
+describe('traceArg', () => {
+	it('hands out wire context with the span as parent, round-tripping the parser', () => {
+		const { client, memory } = makeClient();
+
+		const span = client.begin({ event: 'parent_hop' });
+		const arg = span.traceArg();
+		span.end();
+
+		expect(parseTraceArg(arg)).toEqual(arg);
+		expect(arg.trace_id).toBe(memory.events[0].trace_id);
+		expect(arg.parent_span_id).toBe(memory.events[0].span_id);
+	});
+
+	it('is total for spans begun from inbound context', () => {
+		const { client } = makeClient();
+		const traceId = 'a'.repeat(32);
+
+		const span = client.begin({ event: 'ingress', trace_id: traceId });
+		const arg = span.traceArg();
+		span.end();
+
+		expect(arg.trace_id).toBe(traceId);
+		expect(arg.parent_span_id).toMatch(/^[0-9a-f]{16}$/);
 	});
 });
 

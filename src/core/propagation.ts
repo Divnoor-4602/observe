@@ -1,3 +1,8 @@
+export type TraceArg = {
+	parent_span_id?: string;
+	trace_id: string;
+};
+
 export type TraceContext = {
 	sampled: boolean;
 	spanId: string;
@@ -7,6 +12,34 @@ export type TraceContext = {
 export function formatTraceparent(ctx: TraceContext): string {
 	const flags = ctx.sampled ? '01' : '00';
 	return `00-${ctx.traceId}-${ctx.spanId}-${flags}`;
+}
+
+export function fromRequest(request: {
+	headers: { get: (name: string) => null | string };
+}): null | TraceContext {
+	return parseTraceparent(request.headers.get('traceparent'));
+}
+
+export function parseTraceArg(value: unknown): null | TraceArg {
+	if (value === null || typeof value !== 'object') {
+		return null;
+	}
+
+	const traceId = 'trace_id' in value ? value.trace_id : undefined;
+	if (typeof traceId !== 'string' || !isValidTraceId(traceId)) {
+		return null;
+	}
+
+	const parentSpanId = 'parent_span_id' in value ? value.parent_span_id : undefined;
+	if (parentSpanId === undefined) {
+		return { trace_id: traceId };
+	}
+
+	if (typeof parentSpanId !== 'string' || !isValidSpanId(parentSpanId)) {
+		return null;
+	}
+
+	return { parent_span_id: parentSpanId, trace_id: traceId };
 }
 
 export function parseTraceparent(header: null | string | undefined): null | TraceContext {
@@ -48,6 +81,10 @@ export function parseTraceparent(header: null | string | undefined): null | Trac
 		spanId,
 		traceId,
 	};
+}
+
+export function toTraceArg(ctx: TraceContext): TraceArg {
+	return { parent_span_id: ctx.spanId, trace_id: ctx.traceId };
 }
 
 function isValidSpanId(spanId: string): boolean {

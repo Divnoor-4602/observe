@@ -72,6 +72,10 @@ def _to_error_fields(err: object) -> dict[str, str]:
 
     fields = {"message": message, "type": kind}
     code = getattr(err, "code", None)
+    if not isinstance(code, str):
+        data = getattr(err, "data", None)
+        if isinstance(data, dict):
+            code = data.get("code")
     if isinstance(code, str):
         fields["code"] = code
 

@@ -98,6 +98,22 @@ describe('createSentrySink', () => {
 		expect(breadcrumbs[0].level).toBe('warning');
 	});
 
+	it('keeps tags and context when addBreadcrumb throws', () => {
+		const { contexts, fns, tags } = makeFakes();
+		const sink = createSentrySink({
+			...fns,
+			addBreadcrumb: () => {
+				throw new Error('sentry down');
+			},
+		});
+
+		void sink.send(makeEvent({ error: { message: 'timeout', type: 'Error' }, outcome: 'error' }));
+
+		expect(tags.trace_id).toBe('0'.repeat(31) + '1');
+		expect(tags.observe_event).toBe('chat_turn');
+		expect(contexts.observe).toBeDefined();
+	});
+
 	it('swallows throwing vendor functions', () => {
 		const sink = createSentrySink({
 			addBreadcrumb: () => {

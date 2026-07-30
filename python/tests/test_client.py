@@ -87,6 +87,21 @@ def test_error_code_is_lifted_from_exception():
     assert sink.events[0]["error"]["code"] == "RATE_LIMITED"
 
 
+def test_error_code_is_lifted_from_structured_data():
+    class AppError(RuntimeError):
+        def __init__(self, message: str, code: str) -> None:
+            super().__init__(message)
+            self.data = {"code": code}
+
+    sink = MemorySink()
+    client = make_client(sink)
+    span = client.begin("model_call")
+    span.error(AppError("forbidden", "FORBIDDEN"))
+    span.end()
+
+    assert sink.events[0]["error"]["code"] == "FORBIDDEN"
+
+
 def test_success_dropped_at_rate_zero(memory_sink):
     client = make_client(memory_sink, sample_rate=0)
     client.begin("chat_turn").end()
@@ -126,6 +141,27 @@ def test_get_context_fields_land_and_meta_wins(memory_sink):
     assert event["route"] == "from-meta"
 
 
+def test_get_context_and_meta_deep_merge(memory_sink):
+    client = make_client(
+        memory_sink,
+        get_context=lambda: {
+            "gen_ai": {
+                "provider": {"name": "openai"},
+                "request": {"temperature": 0.2},
+            }
+        },
+    )
+    client.begin(
+        "model_call",
+        gen_ai={"request": {"model": "gpt-5.5"}},
+    ).end()
+
+    assert memory_sink.events[0]["gen_ai"] == {
+        "provider": {"name": "openai"},
+        "request": {"model": "gpt-5.5", "temperature": 0.2},
+    }
+
+
 def test_get_context_failure_is_swallowed(memory_sink):
     def broken() -> dict:
         raise RuntimeError("no request state")
@@ -155,6 +191,22 @@ def test_sink_exception_is_isolated(memory_sink):
     client._config = client._config.model_copy(update={"sinks": (BrokenSink(), memory_sink)})
     client.begin("chat_turn").end()
     assert len(memory_sink.events) == 1
+
+
+def test_each_sink_receives_an_independent_redacted_clone(memory_sink):
+    class MutatingSink:
+        name = "mutating"
+
+        def send(self, event) -> None:
+            event["note"] = "changed by first sink"
+
+    client = make_client(memory_sink)
+    client._config = client._config.model_copy(
+        update={"sinks": (MutatingSink(), memory_sink)}
+    )
+    client.begin("chat_turn", note="original").end()
+
+    assert memory_sink.events[0]["note"] == "original"
 
 
 def test_explicit_trace_adoption(memory_sink):
