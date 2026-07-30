@@ -1,16 +1,26 @@
 import type { Event } from './core/accumulator.ts';
-import type { ObservabilityClient } from './core/client.ts';
+import type { TraceContext } from './core/propagation.ts';
 import type { WideEvent } from './core/schema.ts';
 import type { BeginMeta } from './core/types.ts';
 
+import { createObservabilityClient, type ObservabilityClient } from './core/client.ts';
+
 let installedClient: ObservabilityClient | undefined;
+let fallbackClient: ObservabilityClient | undefined;
 
 function requireClient(): ObservabilityClient {
-	if (installedClient === undefined) {
-		throw new Error('[observe] no client installed — call installObservability(client) at startup');
+	if (installedClient !== undefined) {
+		return installedClient;
 	}
 
-	return installedClient;
+	if (fallbackClient === undefined) {
+		fallbackClient = createObservabilityClient({ runtime: 'web', sinks: [] });
+		console.warn(
+			'[observe] no client installed — events are dropped until installObservability(client) runs',
+		);
+	}
+
+	return fallbackClient;
 }
 
 export const obs = {
@@ -19,6 +29,9 @@ export const obs = {
 	},
 	begin(meta: BeginMeta): Event {
 		return requireClient().begin(meta);
+	},
+	currentTrace(): TraceContext | undefined {
+		return installedClient?.currentTrace();
 	},
 	error(err: unknown): void {
 		installedClient?.error(err);
@@ -35,6 +48,7 @@ export function installObservability(client: ObservabilityClient): void {
 	installedClient = client;
 }
 
+export type { Event } from './core/accumulator.ts';
 export {
 	defaultRandomBytes,
 	newEventId,
@@ -42,4 +56,12 @@ export {
 	newSpanId,
 	newTraceId,
 } from './core/identifier.ts';
-export { formatTraceparent, parseTraceparent } from './core/propagation.ts';
+export {
+	formatTraceparent,
+	fromRequest,
+	parseTraceArg,
+	parseTraceparent,
+	toTraceArg,
+	type TraceArg,
+	type TraceContext,
+} from './core/propagation.ts';

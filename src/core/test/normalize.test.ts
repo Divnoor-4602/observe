@@ -22,6 +22,12 @@ describe('normalize', () => {
 		expect(bag.big).toBe('10');
 	});
 
+	it('coerces an invalid Date to null', () => {
+		const bag: Record<string, unknown> = { at: new Date('invalid') };
+		normalize(bag);
+		expect(bag.at).toBeNull();
+	});
+
 	it('drops undefined but keeps null', () => {
 		const bag: Record<string, unknown> = { gone: undefined, kept: null };
 		normalize(bag);

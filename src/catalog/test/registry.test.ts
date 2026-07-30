@@ -17,6 +17,10 @@ describe('catalog', () => {
 		expect(catalogSchema(catalog, 'nope')).toBeUndefined();
 	});
 
+	it('does not resolve inherited property names as catalog events', () => {
+		expect(catalogSchema(catalog, 'toString')).toBeUndefined();
+	});
+
 	it('validates a chat_turn against its stub schema', () => {
 		const schema = catalogSchema(catalog, 'chat_turn');
 		const valid = schema?.safeParse({
@@ -56,5 +60,20 @@ describe('catalog', () => {
 
 		expect(valid?.success).toBe(true);
 		expect(invalid?.success).toBe(false);
+	});
+
+	it('rejects fractional payment minor units', () => {
+		const schema = catalogSchema(catalog, 'payment_attempt');
+		const result = schema?.safeParse({
+			event: 'payment_attempt',
+			payment: {
+				amount_minor: 49.99,
+				currency: 'USD',
+				processor: 'stripe',
+				status: 'succeeded',
+			},
+		});
+
+		expect(result?.success).toBe(false);
 	});
 });

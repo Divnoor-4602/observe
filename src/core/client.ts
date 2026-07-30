@@ -1,13 +1,15 @@
+import type { TraceContext } from './propagation.ts';
 import type { WideEvent } from './schema.ts';
 import type { BeginMeta, ClientConfig, RandomBytes, Sink } from './types.ts';
 
 import { type Emit, Event } from './accumulator.ts';
 import { defaultRandomBytes, newEventId, newSpanId, newTraceId } from './identifier.ts';
 import { redactEvent } from './redact.ts';
-import { getSampleDecision, resolveSampleRate } from './sample.ts';
-import { readString } from './wide-event.ts';
+import { getSampleDecision, isSampled, resolveSampleRate } from './sample.ts';
+import { deepMerge, readString } from './wide-event.ts';
 
 export class ObservabilityClient {
+	readonly #ambient: boolean;
 	readonly #deployment?: string;
 	readonly #dev: boolean;
 	readonly #environment: 'development' | 'production' | 'staging';
@@ -15,7 +17,7 @@ export class ObservabilityClient {
 	readonly #pending = new Set<Promise<void>>();
 	readonly #randomBytes: RandomBytes;
 	readonly #region?: string;
-	readonly #runtime: 'react_native' | 'web';
+	readonly #runtime: 'convex' | 'react_native' | 'web';
 	readonly #sampleExemptTiers: readonly string[];
 	readonly #sampleRate: number;
 	readonly #service?: string;
@@ -24,6 +26,7 @@ export class ObservabilityClient {
 	readonly #stack: Event[] = [];
 
 	constructor(config: ClientConfig) {
+		this.#ambient = config.ambient ?? true;
 		this.#sinks = config.sinks;
 		this.#getContext = config.getContext;
 		this.#randomBytes = config.randomBytes ?? defaultRandomBytes;
@@ -56,9 +59,12 @@ export class ObservabilityClient {
 		const traceId = readString(meta.trace_id) ?? parent?.traceId ?? newTraceId(this.#randomBytes);
 		const parentSpanId = readString(meta.parent_span_id) ?? parent?.spanId;
 
+		const bag: Record<string, unknown> = {};
+		deepMerge(bag, context);
+		deepMerge(bag, meta);
+
 		const data: WideEvent = {
-			...context,
-			...meta,
+			...bag,
 			deployment: this.#deployment,
 			duration_ms: 0,
 			environment: this.#environment,
@@ -79,6 +85,17 @@ export class ObservabilityClient {
 		return new Event(this.#emit, data, this.begin);
 	};
 
+	currentTrace = (): TraceContext | undefined => {
+		const span = this.#current();
+		const traceId = span?.traceId;
+		const spanId = span?.spanId;
+		if (traceId === undefined || spanId === undefined) {
+			return undefined;
+		}
+
+		return { sampled: isSampled(traceId, this.#sampleRate), spanId, traceId };
+	};
+
 	error = (err: unknown): void => {
 		this.#current()?.error(err);
 	};
@@ -88,7 +105,9 @@ export class ObservabilityClient {
 			// oxlint-disable-next-line no-await-in-loop -- deliveries scheduled during the drain must settle before flush resolves.
 			await Promise.allSettled(this.#pending);
 		}
-		await Promise.allSettled(this.#sinks.map((sink) => Promise.resolve(sink.flush?.())));
+		await Promise.allSettled(
+			this.#sinks.map((sink) => Promise.resolve().then(() => sink.flush?.())),
+		);
 	}
 
 	withInteraction = <T>(name: string, fn: () => Promise<T> | T): Promise<T> => {
@@ -120,9 +139,8 @@ export class ObservabilityClient {
 		event.sample_rate = decision.sampleRate;
 		event.sampled = true;
 
-		const scrubbed = redactEvent(event);
 		for (const sink of this.#sinks) {
-			const delivery = this.#deliver(sink, scrubbed);
+			const delivery = this.#deliver(sink, redactEvent(event));
 			this.#pending.add(delivery);
 			void delivery.finally(() => this.#pending.delete(delivery));
 		}
@@ -130,7 +148,10 @@ export class ObservabilityClient {
 
 	async #run<T>(meta: BeginMeta, fn: (event: Event) => Promise<T> | T): Promise<T> {
 		const span = this.begin(meta);
-		this.#stack.push(span);
+		if (this.#ambient) {
+			this.#stack.push(span);
+		}
+
 		try {
 			return await fn(span);
 		} catch (err) {

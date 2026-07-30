@@ -18,15 +18,16 @@ The catalog is authored once, in zod (`src/catalog/`). The JSON Schemas are gene
 
 ## Exports
 
-| Subpath     | What                                                        | Who uses it                             |
-| ----------- | ----------------------------------------------------------- | --------------------------------------- |
-| `.`         | `obs` API, `installObservability`, id + traceparent helpers | all call sites                          |
-| `./client`  | `createObservabilityClient`                                 | app startup (web / RN)                  |
-| `./catalog` | `catalog`, `catalogSchema`, `CatalogEvents`                 | emitters + boundary validation          |
-| `./schema`  | `wideEventSchema`, `WideEvent`                              | trust boundaries (Convex ingest, drain) |
-| `./dev`     | `createConsolePrettySink`, `createMemorySink`               | local dev, tests                        |
-| `./sentry`  | `createSentrySink` (enrichment-only, vendor fns injected)   | app startup (web / RN)                  |
-| `./types`   | `Sink`, `ClientConfig`, `TraceContext`, …                   | everywhere (types only)                 |
+| Subpath        | What                                                        | Who uses it                             |
+| -------------- | ----------------------------------------------------------- | --------------------------------------- |
+| `.`            | `obs` API, `installObservability`, id + traceparent helpers | all call sites                          |
+| `./client`     | `createObservabilityClient`                                 | app startup (web / RN / Convex)         |
+| `./catalog`    | `catalog`, `catalogSchema`, `CatalogEvents`                 | emitters + boundary validation          |
+| `./schema`     | `wideEventSchema`, `WideEvent`                              | trust boundaries (Convex ingest, drain) |
+| `./dev`        | `createConsolePrettySink`, `createMemorySink`               | local dev, tests                        |
+| `./log-stream` | `createLogStreamSink` (marked `console.info` JSON line)     | server runtimes drained by log streams  |
+| `./sentry`     | `createSentrySink` (enrichment-only, vendor fns injected)   | app startup (web / RN)                  |
+| `./types`      | `Sink`, `ClientConfig`, `TraceContext`, …                   | everywhere (types only)                 |
 
 ## Quick start
 
@@ -44,12 +45,14 @@ const client = createObservabilityClient({
 installObservability(client);
 
 await obs.withSpan({ event: 'chat_turn', route: 'chat.stream' }, (span) => {
-	span.add({ gen_ai: { request: { model: 'gpt-5.5' } } });
+	span.add({ gen_ai: { provider: { name: 'openai' }, request: { model: 'gpt-5.5' } } });
 	// work — on throw the span records outcome: 'error' and rethrows
 });
 ```
 
 `withInteraction(name, fn)` is the client-side variant that tracks the current span implicitly so nested `obs.add()` calls land on it. Call `client.flush()` before shutdown/stream end to await in-flight sink sends.
+
+Ambient tracking uses a client-wide span stack (no `AsyncLocalStorage` on web/RN/Convex runtimes), so overlapping async interactions on one client can misattribute `obs.currentTrace()` and `obs.add()`. Where overlap is possible, pass the span explicitly — `withSpan(meta, (span) => …)`, `span.add()`, `span.traceArg()` — or set `ambient: false`.
 
 ## Emit pipeline
 
@@ -57,8 +60,19 @@ Every span runs, in order, at `end()`:
 
 1. **normalize** — scalar leaves only (`Date`→ISO, `bigint`→string, non-finite→`null`, arrays/functions dropped), caps (1024-char strings, 256 fields, depth 6), drops raw-content paths (`gen_ai.input/output/system_instructions`).
 2. **sample** — keep/drop decided per event: errors always kept (`sample_rate: 1`), `sampleExemptTiers` always kept (`sample_rate: 1`), everything else a deterministic head ratio hashed from `trace_id` (whole trace agrees). Kept events are stamped `sampled` + `sample_rate`; reweight aggregates in Tinybird by `1 / sample_rate`.
-3. **redact** — a fresh scrubbed clone fans out to sinks; the span's own data is untouched. Key denylist (`password`, `api_key`, `secret`, `*_token` — but not `tokens_in`/`tokens_out`) plus value scanners (email, Luhn-valid cards, JWT, `sk_`/`pk_`/`AKIA` keys, IPv4, phone → `[REDACTED:<type>]`). This is a light structural net — thorough redaction runs server-side at the drain.
-4. **fan out** — the clone goes to every configured `Sink.send()`; sink failures are isolated and never throw into app code.
+3. **redact** — a fresh scrubbed clone is created for each sink; the span's own data and sibling sink deliveries are untouched. Key denylist (`password`, `api_key`, `secret`, `*_token` — but not `tokens_in`/`tokens_out`) plus value scanners (email, Luhn-valid cards, JWT, `sk_`/`pk_`/`AKIA` keys, IPv4, phone → `[REDACTED:<type>]`). This is a light structural net — thorough redaction runs server-side at the drain.
+4. **fan out** — each clone goes to its configured `Sink.send()`; sink failures are isolated and never throw into app code.
+
+## Trace propagation
+
+Headerless JSON/RPC calls carry trace context as an optional argument with `{ trace_id, parent_span_id }`:
+
+- **Outbound calls** — read the ambient interaction with `obs.currentTrace()` and encode it with `toTraceArg(trace)`.
+- **Inbound calls** — adopt context fail-open with `parseTraceArg(args.trace)`. Malformed or missing context returns `null`, and the parsed result contains only the two trace ID keys.
+- **Server hops** — `span.traceArg()` hands out the current span as the parent for the next hop.
+- **HTTP** — `fromRequest(request)` parses an inbound W3C `traceparent` header; `formatTraceparent(trace)` writes one.
+
+Propagate into mutations, actions, and one-shot queries, but not reactive query subscriptions where unique trace arguments would fragment caching. The trace argument carries IDs only, never payloads. The sampled flag is advisory; every hop derives its keep/drop decision deterministically from `trace_id`.
 
 ## Sentry
 

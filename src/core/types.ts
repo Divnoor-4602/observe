@@ -3,12 +3,13 @@ import type { WideEvent } from './schema.ts';
 export type BeginMeta = Partial<WideEvent> & { event: string };
 
 export type ClientConfig = {
+	ambient?: boolean;
 	deployment?: string;
 	environment?: 'development' | 'production' | 'staging';
 	getContext?: () => Record<string, unknown>;
 	randomBytes?: RandomBytes;
 	region?: string;
-	runtime: 'react_native' | 'web';
+	runtime: 'convex' | 'react_native' | 'web';
 	sampleExemptTiers?: string[];
 	sampleRate?: number;
 	service?: string;

@@ -22,7 +22,7 @@ from .identifiers import default_random_bytes, new_event_id, new_span_id, new_tr
 from .redact import redact_event
 from .sample import get_sample_decision, resolve_sample_rate
 from .types import ClientConfig, Sink
-from .wide_event import read_string
+from .wide_event import deep_merge, read_string
 
 _logger = logging.getLogger("observe")
 
@@ -66,7 +66,9 @@ class ObservabilityClient:
         if parent_span_id is None and parent is not None:
             parent_span_id = parent.span_id
 
-        data: dict[str, Any] = {**context, **meta}
+        data: dict[str, Any] = {}
+        deep_merge(data, context)
+        deep_merge(data, meta)
         data.update(
             duration_ms=0,
             environment=self._config.environment,
@@ -167,9 +169,8 @@ class ObservabilityClient:
         scrubbed before sending, but it costs nothing and protects any sink
         attached to the relay path.
         """
-        scrubbed = redact_event(event)
         for sink in self._config.sinks:
-            self._deliver(sink, scrubbed)
+            self._deliver(sink, redact_event(event))
 
     def _emit(self, event: dict[str, Any]) -> None:
         decision = get_sample_decision(event, self._sample_rate, self._config.sample_exempt_tiers)
@@ -179,9 +180,8 @@ class ObservabilityClient:
         event["sample_rate"] = decision.sample_rate
         event["sampled"] = True
 
-        scrubbed = redact_event(event)
         for sink in self._config.sinks:
-            self._deliver(sink, scrubbed)
+            self._deliver(sink, redact_event(event))
 
     async def _settle(self, sink_name: str, result: Awaitable[None]) -> None:
         try:

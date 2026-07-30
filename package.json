@@ -9,6 +9,7 @@
 		"./catalog": "./src/catalog/index.ts",
 		"./client": "./src/client.ts",
 		"./dev": "./src/sinks/dev.ts",
+		"./log-stream": "./src/sinks/log-stream.ts",
 		"./schema": "./src/core/schema.ts",
 		"./sentry": "./src/sinks/sentry.ts",
 		"./types": "./src/types.ts"
